@@ -1,0 +1,89 @@
+# Quick local run without Kubernetes:  docker compose up --build -d
+# UI: http://localhost:8080   project-service Swagger: http://localhost:8000/docs
+# All settings come from .env (copy .env.example). Without a .env it runs in mock mode.
+name: deckpilot
+
+x-llm-env: &llm-env
+  LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+  AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+  AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+  AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-}
+  LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-low}
+  LLM_TIMEOUT: ${LLM_TIMEOUT:-180}
+  LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-}
+  INTAKE_MODEL: ${INTAKE_MODEL:-}
+  RESEARCH_MODEL: ${RESEARCH_MODEL:-}
+  SEARCH_MODEL: ${SEARCH_MODEL:-}
+  BUILDER_MODEL: ${BUILDER_MODEL:-}
+  INTAKE_REASONING_EFFORT: ${INTAKE_REASONING_EFFORT:-}
+  RESEARCH_REASONING_EFFORT: ${RESEARCH_REASONING_EFFORT:-}
+  SEARCH_REASONING_EFFORT: ${SEARCH_REASONING_EFFORT:-}
+  BUILDER_REASONING_EFFORT: ${BUILDER_REASONING_EFFORT:-medium}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: deckpilot
+      POSTGRES_PASSWORD: deckpilot
+      POSTGRES_DB: deckpilot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deckpilot -d deckpilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  intake-service:
+    build: ../intake-service
+    environment: *llm-env
+
+  research-service:
+    build: ../research-service
+    environment:
+      <<: *llm-env
+      MAX_QUERIES: ${MAX_QUERIES:-6}
+      ENABLE_IMAGES: ${ENABLE_IMAGES:-true}
+
+  builder-service:
+    build: ../builder-service
+    environment:
+      <<: *llm-env
+      DEFAULT_THEME: ${DEFAULT_THEME:-executive}
+
+  project-service:
+    build: ../project-service
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: deckpilot
+      POSTGRES_PASSWORD: deckpilot
+      POSTGRES_DB: deckpilot
+      INTAKE_URL: http://intake-service:8000
+      RESEARCH_URL: http://research-service:8000
+      BUILDER_URL: http://builder-service:8000
+      DEFAULT_THEME: ${DEFAULT_THEME:-executive}
+      INTAKE_TIMEOUT: ${INTAKE_TIMEOUT:-120}
+      RESEARCH_TIMEOUT: ${RESEARCH_TIMEOUT:-600}
+      BUILD_TIMEOUT: ${BUILD_TIMEOUT:-420}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      intake-service:
+        condition: service_started
+      research-service:
+        condition: service_started
+      builder-service:
+        condition: service_started
+
+  deckpilot-ui:
+    build: ../deckpilot-ui
+    ports:
+      - "8080:80"
+    depends_on:
+      - project-service
+
+volumes:
+  pgdata:

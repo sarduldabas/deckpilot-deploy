@@ -1,0 +1,26 @@
+# Defaults for the shared, non-secret configuration. Applied first by deploy.ps1.
+# scripts/sync-config.ps1 then overwrites it with the values from deckpilot-deploy/.env,
+# so you normally never edit this file - edit .env instead.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deckpilot-config
+  namespace: deckpilot
+  labels:
+    part-of: deckpilot
+data:
+  LLM_PROVIDER: "mock"
+  LLM_REASONING_EFFORT: "low"
+  BUILDER_REASONING_EFFORT: "medium"
+  LLM_TIMEOUT: "180"
+  MAX_QUERIES: "6"
+  ENABLE_IMAGES: "true"
+  DEFAULT_THEME: "executive"
+  INTAKE_TIMEOUT: "120"
+  RESEARCH_TIMEOUT: "600"
+  BUILD_TIMEOUT: "420"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  INTAKE_URL: "http://intake-service:8000"
+  RESEARCH_URL: "http://research-service:8000"
+  BUILDER_URL: "http://builder-service:8000"

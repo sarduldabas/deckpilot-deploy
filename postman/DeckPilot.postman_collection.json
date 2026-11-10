@@ -1,0 +1,373 @@
+{
+  "info": {
+    "name": "DeckPilot",
+    "description": "Calls go through the UI's nginx at /api (or straight to project-service on :8000 with baseUrl=http://localhost:8000).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"service is up\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 CreateProject (complete brief)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projects",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects"
+          ]
+        },
+        "description": "Command. Returns immediately; the workflow runs in the background. Poll 'GetProject'. theme is one of executive, graphite, forest, aubergine (optional). slide_count is the number of content slides (3-15); a title, agenda and sources slide are added.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"Generative AI in customer support\",\n  \"description\": \"A briefing for our leadership team on how generative AI is changing customer support: cost impact, quality and risk concerns, and which vendors or approaches we should evaluate next year. Keep it practical.\",\n  \"audience\": \"Senior leadership\",\n  \"slide_count\": 9,\n  \"theme\": \"executive\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"projectId\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01b CreateProject (short brief -> needs questions)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projects",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"Solar power adoption in India\",\n  \"description\": \"Overview for a talk.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"projectId\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 GetProject (poll until COMPLETED)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "console.log(\"status:\", pm.response.json().status);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 SubmitAnswers",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}/answers",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}",
+            "answers"
+          ]
+        },
+        "description": "Only valid while status is NEEDS_INPUT. Send an empty list to proceed with assumptions.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"answers\": [\n    {\n      \"question\": \"Who is the primary audience for this deck and how familiar are they with the topic?\",\n      \"answer\": \"School students, beginners\"\n    },\n    {\n      \"question\": \"What decision or outcome should this deck support?\",\n      \"answer\": \"Raise awareness of solar adoption\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"202 Accepted\", () => pm.response.to.have.status(202));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 GetActivity (service-to-service calls)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}/events",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}",
+            "events"
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "05 GetResearch (notes, queries, sources)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}/research",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}",
+            "research"
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "06 DownloadDeck (.pptx)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}/download",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}",
+            "download"
+          ]
+        },
+        "description": "Use 'Send and Download' in Postman to save the file."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"is a pptx\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"presentationml\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 ListProjects",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/projects",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects"
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "08 RetryProject (only if FAILED)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}/retry",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}",
+            "retry"
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "08b RebuildDeck (new theme, no new search)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}/rebuild",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}",
+            "rebuild"
+          ]
+        },
+        "description": "Command. Valid when the project is COMPLETED or FAILED and research exists. Re-runs only the builder with the stored research, so there is no second web search. Returns 202; poll GetProject.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"theme\": \"aubergine\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "09 DeleteProject",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/projects/{{projectId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "projects",
+            "{{projectId}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api"
+    },
+    {
+      "key": "projectId",
+      "value": ""
+    }
+  ]
+}
