@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kubernetes and compose YAML parse
+        run: |
+          pip install pyyaml
+          python - <<'PY'
+          import glob, yaml
+          files = glob.glob("k8s/*.yaml") + ["docker-compose.yml"]
+          for f in files:
+              docs = [d for d in yaml.safe_load_all(open(f)) if d]
+              print(f"ok  {f}  ({len(docs)} document(s))")
+          PY
+
+      - name: Postman collection is valid JSON
+        run: python -c "import json; d=json.load(open('postman/DeckPilot.postman_collection.json')); print('ok', len(d['item']), 'requests')"
+
+      - name: PowerShell scripts parse
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($f in Get-ChildItem scripts -Filter *.ps1) {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors)
+            if ($errors) { $errors | ForEach-Object { Write-Host "$($f.Name): $_" }; $failed = $true }
+            else { Write-Host "ok  $($f.Name)" }
+          }
+          if ($failed) { exit 1 }
+
+      - name: .env must not be committed
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then echo ".env is tracked"; exit 1; fi
+          echo "ok  .env is not tracked"
